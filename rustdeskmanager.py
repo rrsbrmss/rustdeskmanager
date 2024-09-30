@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Roman Boyarintsev
+# Copyright (c) 2024
 # All rights reserved.
 #
 # This software is licensed under the Python Software Foundation License (PSF License) and GNU General Public License (GPL v3).
