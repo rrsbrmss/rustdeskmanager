@@ -9,21 +9,20 @@ import toml
 import subprocess
 import pickle
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QFileDialog, QListWidget, QLabel,\
-    QTextEdit, QTreeWidget, QTreeWidgetItem, QInputDialog, QGroupBox, QMessageBox, QCheckBox, QAbstractItemView, QTreeWidgetItemIterator
+    QTextEdit, QTreeWidget, QTreeWidgetItem, QInputDialog, QGroupBox, QMessageBox, QCheckBox, QAbstractItemView, QTreeWidgetItemIterator,\
+    QFrame
 from PyQt6.QtCore import Qt, QProcess
+from PyQt6.QtGui import QIcon
 
 class MyTreeWidget(QTreeWidget):
     def __init__(self):
         super().__init__()
 
-    def dropEvent(self, event):
-        super().dropEvent(event)
-
-    def startDrag(self, supportedActions):
-        super().startDrag(supportedActions)
-
-    def showEvent(self, event):
-        super().showEvent(event)
+class MyPushButton(QPushButton):
+    def __init__(self):
+        super().__init__()
+    
+        self.setStyleSheet("QPushButton:hover { background-color: #ccc; }")
 
 class RustDeskManager(QWidget):
     def __init__(self):
@@ -43,19 +42,19 @@ class RustDeskManager(QWidget):
         self.setWindowTitle("rustdeskmanager")
 
         layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # There is group of id_tree, it buttons
         tree_layout = QVBoxLayout()
         tree_button_layout = QHBoxLayout()
 
-        # There is group of id_tree, ids_list, details_text
+        # There is group of id_tree, ids_list
         horizontal_layout = QHBoxLayout()
         horizontal_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # There is local layout for details
         details_layout = QVBoxLayout()
-        details_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
+        
         # There is group of IDs_label, IDs_list, run_button
         IDs_layout = QVBoxLayout()
 
@@ -70,12 +69,15 @@ class RustDeskManager(QWidget):
         self.work_folder_input = QLineEdit()
         self.work_folder_input.setReadOnly(True)
         self.work_folder_input.setToolTip(f"Укажите папку, где содержатся конфигурационные файлы *.toml rustdesk.\nОбычно находятся в папке пользователя AppData\\Roaming\\RustDesk\\config\\peers")
-        self.work_folder_input.setMaximumWidth(400)
-        self.work_folder_button = QPushButton("Выбрать")
+        self.work_folder_input.setFixedSize(400, 20)
+        #self.work_folder_input.setMaximumWidth(400)
+        self.work_folder_button = MyPushButton()
+        self.work_folder_button.setText("Выбрать")
         self.work_folder_button.setFixedWidth(80)
         self.work_folder_button.clicked.connect(self.browse_work_folder)
         work_folder_layout.addWidget(self.work_folder_input)
         work_folder_layout.addWidget(self.work_folder_button)
+        work_folder_layout.addStretch()
         settings_layout.addWidget(self.work_folder_label)
         settings_layout.addLayout(work_folder_layout)
 
@@ -84,13 +86,22 @@ class RustDeskManager(QWidget):
         self.rustdesk_label = QLabel("Путь к исполняемому файлу Rustdesk:")
         self.rustdesk_input = QLineEdit()
         self.rustdesk_input.setReadOnly(True)
-        self.rustdesk_input.setToolTip(f"Укажите экземпляр rustdesk.exe для запуска.\nВозможно указать не установленный в систему экземпляр,\nесли он на данный момент времени не является только установщиком")
-        self.rustdesk_input.setMaximumWidth(400)
-        self.rustdesk_button = QPushButton("Выбрать")
+        self.rustdesk_input.setToolTip(f"Укажите экземпляр rustdesk.exe для запуска.\nВозможно указать не установленный в систему экземпляр,\nесли он на данный момент времени не является только установщиком.\nДолжен содержать в имени файла rustdesk")
+        self.rustdesk_input.setFixedSize(400, 20)
+        #self.rustdesk_input.setMaximumWidth(400)
+        self.rustdesk_button = MyPushButton()
+        self.rustdesk_button.setText("Выбрать")
         self.rustdesk_button.setFixedWidth(80)
         self.rustdesk_button.clicked.connect(self.browse_rustdesk)
+        self.rustdesk_run_button = MyPushButton()
+        self.rustdesk_run_button.setText("Запустить")
+        self.rustdesk_run_button.setFixedWidth(80)
+        self.rustdesk_run_button.setToolTip("Запустить основное приложение Rustdesk")
+        self.rustdesk_run_button.clicked.connect(self.rustdesk_run_button_clicked)
         rustdesk_layout.addWidget(self.rustdesk_input)
         rustdesk_layout.addWidget(self.rustdesk_button)
+        rustdesk_layout.addWidget(self.rustdesk_run_button)
+        rustdesk_layout.addStretch()
         settings_layout.addWidget(self.rustdesk_label)
         settings_layout.addLayout(rustdesk_layout)
 
@@ -101,9 +112,9 @@ class RustDeskManager(QWidget):
         # IDs list
         self.ids_label = QLabel("Rustdesk IDs (*.toml):")
         self.ids_list = QListWidget()
-        self.ids_list.setMaximumWidth(200)
+        self.ids_list.setMaximumWidth(150)
         self.ids_list.setDragEnabled(True)
-        self.ids_list.setToolTip(f"Можно выделить элемент и перетащить в список слева.\nМожно выделить несколько элементов и перетащить в список слева.\nКнопка Rustdesk сейчас работает только для этого списка!")
+        self.ids_list.setToolTip(f"Можно выделить элемент и перетащить в структуру.\nМожно выделить несколько элементов и перетащить в структуру.\nКнопка Rustdesk сейчас работает только для этого списка!")
         self.ids_list.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
         self.ids_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.ids_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -112,8 +123,9 @@ class RustDeskManager(QWidget):
         self.ids_list.itemDoubleClicked.connect(self.run_rustdesk)
 
         # Run button
-        self.run_button = QPushButton("Rustdesk...")
-        self.run_button.setToolTip("Запустить rustdesk.exe для выбранного ID")
+        self.run_button = MyPushButton()
+        self.run_button.setText("Rustdesk...")
+        self.run_button.setToolTip("Запустить rustdesk.exe для выбранного ID (rustdesk.exe --connect ID)")
         self.run_button.clicked.connect(self.run_rustdesk)
         self.run_button.setDefault(True)
 
@@ -125,18 +137,7 @@ class RustDeskManager(QWidget):
         self.details_text.setReadOnly(True)
         self.details_text.setMaximumHeight(100)
         self.details_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # Instructions
-        self.instructions_label = QLabel("Инструкции:")
-
-        # Instructions text
-        #self.instructions_text = QTextEdit(self)
-        #self.instructions_text.setReadOnly(True)
-        #self.instructions_text.setMaximumWidth(500)
-        #self.instructions_text.setMaximumHeight(600)
-        #self.instructions_text.setAlignment(Qt.AlignmentFlag.AlignJustify)
-        #self.instructions_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
+        self.details_text.setStyleSheet("background-color: #f0f0f0;")
 
         # Group tree
         self.id_tree = MyTreeWidget()
@@ -158,27 +159,39 @@ class RustDeskManager(QWidget):
         create_checkbox.stateChanged.connect(self.expand_all_checkbox_changed)
 
         # Add buttons to create, rename, move, and delete groups
-        create_button = QPushButton("Создать")
+        create_button = MyPushButton()
+        create_button.setText("Создать")
         create_button.setToolTip("Создать новую группу или элемент")
         create_button.clicked.connect(self.create_group)
+        create_button.setMaximumWidth(100)
         
-        rename_button = QPushButton("Переименовать")
+        rename_button = MyPushButton()
+        rename_button.setText("Переименовать")
         rename_button.setToolTip("Переименовать группу или элемент")
         rename_button.clicked.connect(self.rename_group)
+        rename_button.setMaximumWidth(100)
         
-        delete_button = QPushButton("Удалить")
+        delete_button = MyPushButton()
+        delete_button.setText("Удалить")
         delete_button.setToolTip("Удалить группу или элемент")
         delete_button.clicked.connect(self.delete_group)
+        delete_button.setMaximumWidth(100)
 
-        update_button = QPushButton("Обновить")
+        update_button = MyPushButton()
+        update_button.setText("Обновить")
         update_button.setToolTip("Обновить название, пользователь, компьютер, система")
         update_button.clicked.connect(self.item_value_update)
+        update_button.setMaximumWidth(100)
         
         # Add buttons to tree layout
         tree_button_layout.addWidget(create_button)
+        tree_button_layout.addSpacing(1)
         tree_button_layout.addWidget(rename_button)
+        tree_button_layout.addSpacing(1)
         tree_button_layout.addWidget(delete_button)
+        tree_button_layout.addSpacing(1)
         tree_button_layout.addWidget(update_button)
+        tree_button_layout.addStretch()
 
         # Add tree layout to tree frame
         tree_layout.addWidget(create_checkbox)
@@ -190,19 +203,19 @@ class RustDeskManager(QWidget):
         IDs_layout.addWidget(self.ids_list)
         IDs_layout.addWidget(self.run_button)
 
-        # Add details widget to details layout
-        details_layout.addWidget(self.details_label)
-        details_layout.addWidget(self.details_text)
-        #details_layout.addWidget(self.instructions_label)
-        #details_layout.addWidget(self.instructions_text)
-        details_layout.addStretch()
-
         # Add layouts to horizontal layout
-        horizontal_layout.addLayout(tree_layout)
         horizontal_layout.addLayout(IDs_layout)
-        horizontal_layout.addLayout(details_layout)
+        horizontal_layout.addLayout(tree_layout)
+
+        horizontal_line = QFrame()
+        horizontal_line.setFrameShape(QFrame.Shape.HLine)
+        horizontal_line.setFrameShadow(QFrame.Shadow.Sunken)
 
         layout.addLayout(horizontal_layout)
+        layout.addSpacing(15)
+        layout.addWidget(horizontal_line)
+        layout.addWidget(self.details_label)
+        layout.addWidget(self.details_text)
 
         self.load_config()
 
@@ -283,6 +296,14 @@ class RustDeskManager(QWidget):
         return True
 #########For QTreeWidget End###############
 
+    def rustdesk_run_button_clicked(self):
+        try:
+            # Run rustdesk
+            command = f'{os.path.normpath(self.rustdesk_path)}'
+            subprocess.Popen(command, shell=True)
+        except FileNotFoundError:
+            QMessageBox.information(self, "Информация", "Путь к Rustdesk.exe не задан.")
+    
     def load_config(self):
         try:
             with open("config.toml", "r", encoding="utf-8") as f:
@@ -335,7 +356,7 @@ class RustDeskManager(QWidget):
 
     def browse_rustdesk(self):
         current_path = self.rustdesk_input.text()
-        rustdesk_path = QFileDialog.getOpenFileName(self, "Выберите rustdesk.exe",current_path,"Файлы (*.exe);;Все файлы (*)")[0]
+        rustdesk_path = QFileDialog.getOpenFileName(self,"Выберите rustdesk.exe",current_path,"Файлы rustdesk (rustdesk*.exe)")[0]
         if rustdesk_path:
             self.rustdesk_path = rustdesk_path
             self.rustdesk_input.setText(os.path.normpath(rustdesk_path))
@@ -471,5 +492,6 @@ class RustDeskManager(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = RustDeskManager()
+    window.setWindowIcon(QIcon("rustdeskmanager.ico"))
     window.show()
     sys.exit(app.exec())
