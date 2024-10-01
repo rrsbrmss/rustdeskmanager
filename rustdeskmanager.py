@@ -1,13 +1,9 @@
-# Copyright (c) 2024
-# All rights reserved.
-#
-# This software is licensed under the Python Software Foundation License (PSF License) and GNU General Public License (GPL v3).
-# See LICENSE_PSF.txt and LICENSE_GPLv3.txt for details.
 import sys
 import os
 import toml
 import subprocess
 import pickle
+import struct
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QFileDialog, QListWidget, QLabel,\
     QTextEdit, QTreeWidget, QTreeWidgetItem, QInputDialog, QGroupBox, QMessageBox, QCheckBox, QAbstractItemView, QTreeWidgetItemIterator
 from PyQt6.QtCore import Qt, QProcess
@@ -455,12 +451,8 @@ class RustDeskManager(QWidget):
                     return
             else:
                 return
-            
-            # Run rustdesk with selected id
-            command = f'"{os.path.normpath(self.rustdesk_path)}" --connect {selected_id}'
-            subprocess.Popen(command, shell=True)
-
-
+            command = f"{self.rustdesk_path} --connect {selected_id}"
+            subprocess.Popen(f"start /B {command}", shell=True)
         elif self.rustdesk_path == "":
             QMessageBox.information(self, "Информация", "Путь к Rustdesk.exe не задан.")
 
